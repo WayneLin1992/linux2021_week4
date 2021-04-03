@@ -41,4 +41,6 @@ void *tpool_future_get(tpool_future_t future, unsigned int seconds);
  */
 int tpool_future_destroy(tpool_future_t future);
 
+tpool_t tpool_concat(tpool_t pool, void *(*func)(void *), void *arg, tpool_future_t future);
+
 #endif // PI_H_INCLUDED
