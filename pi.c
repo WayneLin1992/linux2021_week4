@@ -120,6 +120,9 @@ static void jobqueue_destroy(jobqueue_t *jobqueue)
         } else {
             tmp->future->flag |= __FUTURE_CANCELLED;
             pthread_mutex_unlock(&tmp->future->mutex);
+            pthread_mutex_destroy(&tmp->future->mutex);
+            pthread_cond_destroy(&tmp->future->cond_finished);
+            free(tmp->future);
         }
         free(tmp);
         tmp = jobqueue->head;
@@ -146,16 +149,19 @@ static void *jobqueue_fetch(void *queue)
     pthread_cleanup_push(__jobqueue_fetch_cleanup, (void *) &jobqueue->rwlock);
     //pthread_mutex_lock(&jobqueue->rwlock);
     while (1) {
-        pthread_mutex_lock(&jobqueue->rwlock);
+        //pthread_mutex_lock(&jobqueue->rwlock);
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state);
         pthread_testcancel();
-
+        pthread_mutex_lock(&jobqueue->rwlock);
         while (!jobqueue->tail) pthread_cond_wait(&jobqueue->cond_nonempty, &jobqueue->rwlock);//GGG
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old_state);
         if (jobqueue->head == jobqueue->tail) {
+            //pthread_mutex_lock(&jobqueue->rwlock);
             task = jobqueue->tail;
             jobqueue->head = jobqueue->tail = NULL;
+            //pthread_mutex_unlock(&jobqueue->rwlock);
         } else {
+            //pthread_mutex_lock(&jobqueue->rwlock);
             threadtask_t *tmp;
             for (tmp = jobqueue->head; tmp->next != jobqueue->tail;
                  tmp = tmp->next)
@@ -163,6 +169,7 @@ static void *jobqueue_fetch(void *queue)
             task = tmp->next;
             tmp->next = NULL;
             jobqueue->tail = tmp;
+            //pthread_mutex_unlock(&jobqueue->rwlock);
         }
         pthread_mutex_unlock(&jobqueue->rwlock);
 
@@ -311,12 +318,3 @@ struct __threadpool* tpool_concat(struct __threadpool *pool,
     return pool;
 }
 
-double* show_result(threadtask_t *task){
-//    jobqueue_t *jobqueue = pool->jobqueue;
-//    threadtask_t *task = jobqueue->head;
-    struct __tpool_future *futures = task->future;
-    double *result = tpool_future_get(futures, 0 /* blocking wait */);
-//        double *result = futures->result;
-    printf("%e->", *result);
-    return (double *)result;
-}
