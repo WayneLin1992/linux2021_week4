@@ -57,7 +57,8 @@ int tpool_future_destroy(struct __tpool_future *future)
     if (future) {
         pthread_mutex_lock(&future->mutex);
         if (future->flag & __FUTURE_FINISHED ||
-            future->flag & __FUTURE_CANCELLED) {
+            future->flag & __FUTURE_CANCELLED ||
+            future->flag & __FUTURE_TIMEOUT) {
             pthread_mutex_unlock(&future->mutex);
             pthread_mutex_destroy(&future->mutex);
             pthread_cond_destroy(&future->cond_finished);
@@ -284,6 +285,8 @@ int tpool_join(struct __threadpool *pool)
     size_t num_threads = pool->count;
     for (int i = 0; i < num_threads; i++)
         tpool_apply(pool, NULL, NULL);
+    for (int i = 0; i < num_threads; i++)
+        pthread_cancel(pool->workers[i]);
     for (int i = 0; i < num_threads; i++)
         pthread_join(pool->workers[i], NULL);
     free(pool->workers);

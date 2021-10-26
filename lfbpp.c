@@ -30,7 +30,7 @@ int main()
     }
 
     for (int i = 0; i <= PRECISION; i++) {
-        double *result = tpool_future_get(futures[i], 0 /* blocking wait */);
+        double *result = tpool_future_get(futures[i], 1 /* blocking wait */);
         bpp_sum += *result;
         tpool_future_destroy(futures[i]);
         free(result);
